@@ -44,11 +44,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_projects(self, request):
         user = request.user
-        if user.is_authenticated:
-            projects = Project.objects.filter(owner=user)
-            serializer = ProjectListSerializer(projects, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+        projects = Project.objects.filter(owner=user)
+        serializer = ProjectListSerializer(projects, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -58,6 +56,16 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
-            return Task.objects.all()
-        return Task.objects.filter(project__owner=user) | Task.objects.filter(project__verified=True)
+        project_id = self.kwargs.get('project_pk')
+
+        if project_id:
+            queryset = Task.objects.filter(project_id=project_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        project_id = self.kwargs.get('project_pk')
+
+        if project_id:
+            project = Project.objects.get(id=project_id)
+            serializer.save(project=project)
+        
